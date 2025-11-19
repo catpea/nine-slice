@@ -1,5 +1,8 @@
+
 const container = document.getElementById('container');
 const image = document.getElementById('main-image');
+const pannerZoomer = image.closest('panner-zoomer');
+
 const loadImageBtn = document.getElementById('load-image');
 const loadWidgetsBtn = document.getElementById('load-widgets');
 const saveWidgetsBtn = document.getElementById('save-widgets');
@@ -16,6 +19,11 @@ const copyBtn = document.getElementById('copy-css');
 const output = document.getElementById('output');
 const spritesheetCanvas = document.getElementById('spritesheet');
 const spritesheetCtx = spritesheetCanvas.getContext('2d', { willReadFrequently: true });
+
+setTimeout(()=>{
+console.log('panner-zoomer transform:', pannerZoomer.getTransform())
+
+}, 1000)
 
 // Disable image smoothing for pixel-perfect rendering
 spritesheetCtx.imageSmoothingEnabled = false;
@@ -113,7 +121,7 @@ function addWidget({ outerLeft = 50, outerTop = 50, outerWidth = 200, outerHeigh
 // Setup drag for outer (red) - moves entire widget
 // -----------------------------------------------------------------
 function setupDragOuter(outer, inner) {
-  outer.addEventListener('mousedown', (e) => {
+  outer.addEventListener('pointerdown', (e) => {
     // Select this widget
     selectWidget(outer);
 
@@ -124,17 +132,20 @@ function setupDragOuter(outer, inner) {
     e.preventDefault();
     e.stopPropagation();
 
+    // Convert screen coordinates to world coordinates
+    const world = pannerZoomer.toWorld(e.clientX, e.clientY);
     const rect = outer.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
+
+    // Calculate offset in world coordinates
+    const worldRect = pannerZoomer.toWorld(rect.left, rect.top);
 
     dragState = {
       type: 'drag-outer',
       element: outer,
       inner: inner,
-      offsetX: e.clientX - rect.left,
-      offsetY: e.clientY - rect.top,
-      containerLeft: containerRect.left,
-      containerTop: containerRect.top,
+      offsetX: world.wx - worldRect.wx,
+      offsetY: world.wy - worldRect.wy,
       containerWidth: containerRect.width,
       containerHeight: containerRect.height,
     };
@@ -147,7 +158,7 @@ function setupDragOuter(outer, inner) {
 // Setup drag for inner (blue) - moves only blue within red
 // -----------------------------------------------------------------
 function setupDragInner(inner, outer) {
-  inner.addEventListener('mousedown', (e) => {
+  inner.addEventListener('pointerdown', (e) => {
     // Only drag if clicking on the inner itself, not handles
     if (e.target.classList.contains('resize-handle')) return;
     if (e.target !== inner) return;
@@ -155,17 +166,23 @@ function setupDragInner(inner, outer) {
     e.preventDefault();
     e.stopPropagation();
 
+    // Convert screen coordinates to world coordinates
+    const world = pannerZoomer.toWorld(e.clientX, e.clientY);
     const innerRect = inner.getBoundingClientRect();
     const outerRect = outer.getBoundingClientRect();
+
+    // Calculate offset in world coordinates
+    const worldInnerRect = pannerZoomer.toWorld(innerRect.left, innerRect.top);
+    const worldOuterRect = pannerZoomer.toWorld(outerRect.left, outerRect.top);
 
     dragState = {
       type: 'drag-inner',
       element: inner,
       outer: outer,
-      offsetX: e.clientX - innerRect.left,
-      offsetY: e.clientY - innerRect.top,
-      outerLeft: outerRect.left,
-      outerTop: outerRect.top,
+      offsetX: world.wx - worldInnerRect.wx,
+      offsetY: world.wy - worldInnerRect.wy,
+      outerLeft: worldOuterRect.wx,
+      outerTop: worldOuterRect.wy,
       outerWidth: outerRect.width,
       outerHeight: outerRect.height,
     };
@@ -180,10 +197,12 @@ function setupDragInner(inner, outer) {
 function setupResize(outer, inner) {
   // Setup outer resize handles
   outer.querySelectorAll('.resize-handle').forEach((handle) => {
-    handle.addEventListener('mousedown', (e) => {
+    handle.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation();
 
+      // Convert screen coordinates to world coordinates
+      const world = pannerZoomer.toWorld(e.clientX, e.clientY);
       const outerRect = outer.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
 
@@ -192,8 +211,8 @@ function setupResize(outer, inner) {
         element: outer,
         inner: inner,
         position: handle.dataset.position,
-        startX: e.clientX,
-        startY: e.clientY,
+        startWorldX: world.wx,
+        startWorldY: world.wy,
         startLeft: parseFloat(outer.style.left),
         startTop: parseFloat(outer.style.top),
         startWidth: outerRect.width,
@@ -209,10 +228,12 @@ function setupResize(outer, inner) {
 
   // Setup inner resize handles
   inner.querySelectorAll('.resize-handle').forEach((handle) => {
-    handle.addEventListener('mousedown', (e) => {
+    handle.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation();
 
+      // Convert screen coordinates to world coordinates
+      const world = pannerZoomer.toWorld(e.clientX, e.clientY);
       const innerRect = inner.getBoundingClientRect();
       const outerRect = outer.getBoundingClientRect();
 
@@ -221,8 +242,8 @@ function setupResize(outer, inner) {
         element: inner,
         outer: outer,
         position: handle.dataset.position,
-        startX: e.clientX,
-        startY: e.clientY,
+        startWorldX: world.wx,
+        startWorldY: world.wy,
         startLeft: parseFloat(inner.style.left),
         startTop: parseFloat(inner.style.top),
         startWidth: innerRect.width,
@@ -235,9 +256,9 @@ function setupResize(outer, inner) {
 }
 
 // -----------------------------------------------------------------
-// Mouse move handler
+// Pointer move handler
 // -----------------------------------------------------------------
-document.addEventListener('mousemove', (e) => {
+document.addEventListener('pointermove', (e) => {
   if (!dragState) return;
 
   e.preventDefault();
@@ -254,9 +275,9 @@ document.addEventListener('mousemove', (e) => {
 });
 
 // -----------------------------------------------------------------
-// Mouse up handler
+// Pointer up handler
 // -----------------------------------------------------------------
-document.addEventListener('mouseup', () => {
+document.addEventListener('pointerup', () => {
   if (dragState && dragState.element) {
     dragState.element.classList.remove('dragging');
   }
@@ -267,14 +288,24 @@ document.addEventListener('mouseup', () => {
 // Handle drag outer (moves entire widget)
 // -----------------------------------------------------------------
 function handleDragOuter(e) {
-  const newLeft = e.clientX - dragState.containerLeft - dragState.offsetX;
-  const newTop = e.clientY - dragState.containerTop - dragState.offsetY;
+  // Convert current pointer position to world coordinates
+  const world = pannerZoomer.toWorld(e.clientX, e.clientY);
 
+  // Calculate new position in world coordinates (which map to container pixels)
+  const newLeft = world.wx - dragState.offsetX;
+  const newTop = world.wy - dragState.offsetY;
+
+  // Get element dimensions from getBoundingClientRect and convert to world space
   const rect = dragState.element.getBoundingClientRect();
+  const transform = pannerZoomer.getTransform();
+  const worldWidth = rect.width / transform.scale;
+  const worldHeight = rect.height / transform.scale;
+  const worldContainerWidth = dragState.containerWidth / transform.scale;
+  const worldContainerHeight = dragState.containerHeight / transform.scale;
 
   // Constrain to container and round to pixels
-  const constrainedLeft = Math.round(Math.max(0, Math.min(newLeft, dragState.containerWidth - rect.width)));
-  const constrainedTop = Math.round(Math.max(0, Math.min(newTop, dragState.containerHeight - rect.height)));
+  const constrainedLeft = Math.round(Math.max(0, Math.min(newLeft, worldContainerWidth - worldWidth)));
+  const constrainedTop = Math.round(Math.max(0, Math.min(newTop, worldContainerHeight - worldHeight)));
 
   dragState.element.style.left = constrainedLeft + 'px';
   dragState.element.style.top = constrainedTop + 'px';
@@ -284,15 +315,25 @@ function handleDragOuter(e) {
 // Handle drag inner (moves blue within red)
 // -----------------------------------------------------------------
 function handleDragInner(e) {
-  const newLeft = e.clientX - dragState.outerLeft - dragState.offsetX;
-  const newTop = e.clientY - dragState.outerTop - dragState.offsetY;
+  // Convert current pointer position to world coordinates
+  const world = pannerZoomer.toWorld(e.clientX, e.clientY);
 
+  // Calculate new position relative to outer element
+  const newLeft = world.wx - dragState.outerLeft - dragState.offsetX;
+  const newTop = world.wy - dragState.outerTop - dragState.offsetY;
+
+  // Get element dimensions from getBoundingClientRect and convert to world space
   const innerRect = dragState.element.getBoundingClientRect();
+  const transform = pannerZoomer.getTransform();
+  const worldInnerWidth = innerRect.width / transform.scale;
+  const worldInnerHeight = innerRect.height / transform.scale;
+  const worldOuterWidth = dragState.outerWidth / transform.scale;
+  const worldOuterHeight = dragState.outerHeight / transform.scale;
 
   // Constrain to outer bounds with padding (account for outer border)
   // Available space = outerWidth - 2*OUTER_BORDER (for left and right borders)
-  const maxLeft = dragState.outerWidth - 2 * OUTER_BORDER - innerRect.width - PADDING;
-  const maxTop = dragState.outerHeight - 2 * OUTER_BORDER - innerRect.height - PADDING;
+  const maxLeft = worldOuterWidth - 2 * OUTER_BORDER - worldInnerWidth - PADDING;
+  const maxTop = worldOuterHeight - 2 * OUTER_BORDER - worldInnerHeight - PADDING;
 
   const constrainedLeft = Math.round(Math.max(PADDING, Math.min(newLeft, maxLeft)));
   const constrainedTop = Math.round(Math.max(PADDING, Math.min(newTop, maxTop)));
@@ -305,54 +346,68 @@ function handleDragInner(e) {
 // Handle resize outer (blue stays in absolute position)
 // -----------------------------------------------------------------
 function handleResizeOuter(e) {
-  const deltaX = e.clientX - dragState.startX;
-  const deltaY = e.clientY - dragState.startY;
+  // Convert current pointer position to world coordinates
+  const world = pannerZoomer.toWorld(e.clientX, e.clientY);
+  const transform = pannerZoomer.getTransform();
+
+  // Calculate delta in world coordinates
+  const deltaX = world.wx - dragState.startWorldX;
+  const deltaY = world.wy - dragState.startWorldY;
   const pos = dragState.position;
+
+  // Convert screen-space dimensions to world space
+  const startWidth = dragState.startWidth / transform.scale;
+  const startHeight = dragState.startHeight / transform.scale;
 
   let newLeft = dragState.startLeft;
   let newTop = dragState.startTop;
-  let newWidth = dragState.startWidth;
-  let newHeight = dragState.startHeight;
+  let newWidth = startWidth;
+  let newHeight = startHeight;
 
   // Calculate based on handle position
   if (pos.includes('w')) {
-    newWidth = dragState.startWidth - deltaX;
+    newWidth = startWidth - deltaX;
     newLeft = dragState.startLeft + deltaX;
   } else if (pos.includes('e')) {
-    newWidth = dragState.startWidth + deltaX;
+    newWidth = startWidth + deltaX;
   }
 
   if (pos.includes('n')) {
-    newHeight = dragState.startHeight - deltaY;
+    newHeight = startHeight - deltaY;
     newTop = dragState.startTop + deltaY;
   } else if (pos.includes('s')) {
-    newHeight = dragState.startHeight + deltaY;
+    newHeight = startHeight + deltaY;
   }
 
   // Get inner dimensions with padding
   const innerRect = dragState.inner.getBoundingClientRect();
+  const worldInnerWidth = innerRect.width / transform.scale;
+  const worldInnerHeight = innerRect.height / transform.scale;
   const innerLeft = parseFloat(dragState.inner.style.left);
   const innerTop = parseFloat(dragState.inner.style.top);
   // Minimum outer size = inner position + inner size + padding + outer borders
-  const minWidth = innerLeft + innerRect.width + PADDING + 2 * OUTER_BORDER;
-  const minHeight = innerTop + innerRect.height + PADDING + 2 * OUTER_BORDER;
+  const minWidth = innerLeft + worldInnerWidth + PADDING + 2 * OUTER_BORDER;
+  const minHeight = innerTop + worldInnerHeight + PADDING + 2 * OUTER_BORDER;
 
   // Apply constraints
   if (newWidth < minWidth) {
     if (pos.includes('w')) {
-      newLeft = dragState.startLeft + dragState.startWidth - minWidth;
+      newLeft = dragState.startLeft + startWidth - minWidth;
     }
     newWidth = minWidth;
   }
 
   if (newHeight < minHeight) {
     if (pos.includes('n')) {
-      newTop = dragState.startTop + dragState.startHeight - minHeight;
+      newTop = dragState.startTop + startHeight - minHeight;
     }
     newHeight = minHeight;
   }
 
-  // Constrain to container
+  // Constrain to container (convert container dimensions to world space)
+  const worldContainerWidth = dragState.containerWidth / transform.scale;
+  const worldContainerHeight = dragState.containerHeight / transform.scale;
+
   if (newLeft < 0) {
     newWidth += newLeft;
     newLeft = 0;
@@ -361,11 +416,11 @@ function handleResizeOuter(e) {
     newHeight += newTop;
     newTop = 0;
   }
-  if (newLeft + newWidth > dragState.containerWidth) {
-    newWidth = dragState.containerWidth - newLeft;
+  if (newLeft + newWidth > worldContainerWidth) {
+    newWidth = worldContainerWidth - newLeft;
   }
-  if (newTop + newHeight > dragState.containerHeight) {
-    newHeight = dragState.containerHeight - newTop;
+  if (newTop + newHeight > worldContainerHeight) {
+    newHeight = worldContainerHeight - newTop;
   }
 
   // Apply to outer - round everything to pixels
@@ -384,8 +439,8 @@ function handleResizeOuter(e) {
   const newInnerTop = dragState.innerTop + topDelta;
 
   // Ensure inner stays within bounds with padding on all sides (account for outer border)
-  const maxInnerLeft = Math.round(newWidth) - 2 * OUTER_BORDER - innerRect.width - PADDING;
-  const maxInnerTop = Math.round(newHeight) - 2 * OUTER_BORDER - innerRect.height - PADDING;
+  const maxInnerLeft = Math.round(newWidth) - 2 * OUTER_BORDER - worldInnerWidth - PADDING;
+  const maxInnerTop = Math.round(newHeight) - 2 * OUTER_BORDER - worldInnerHeight - PADDING;
 
   dragState.inner.style.left = Math.round(Math.max(PADDING, Math.min(newInnerLeft, maxInnerLeft))) + 'px';
   dragState.inner.style.top = Math.round(Math.max(PADDING, Math.min(newInnerTop, maxInnerTop))) + 'px';
@@ -395,28 +450,37 @@ function handleResizeOuter(e) {
 // Handle resize inner
 // -----------------------------------------------------------------
 function handleResizeInner(e) {
-  const deltaX = e.clientX - dragState.startX;
-  const deltaY = e.clientY - dragState.startY;
+  // Convert current pointer position to world coordinates
+  const world = pannerZoomer.toWorld(e.clientX, e.clientY);
+  const transform = pannerZoomer.getTransform();
+
+  // Calculate delta in world coordinates
+  const deltaX = world.wx - dragState.startWorldX;
+  const deltaY = world.wy - dragState.startWorldY;
   const pos = dragState.position;
+
+  // Convert screen-space dimensions to world space
+  const startWidth = dragState.startWidth / transform.scale;
+  const startHeight = dragState.startHeight / transform.scale;
 
   let newLeft = dragState.startLeft;
   let newTop = dragState.startTop;
-  let newWidth = dragState.startWidth;
-  let newHeight = dragState.startHeight;
+  let newWidth = startWidth;
+  let newHeight = startHeight;
 
   // Calculate based on handle position
   if (pos.includes('w')) {
-    newWidth = dragState.startWidth - deltaX;
+    newWidth = startWidth - deltaX;
     newLeft = dragState.startLeft + deltaX;
   } else if (pos.includes('e')) {
-    newWidth = dragState.startWidth + deltaX;
+    newWidth = startWidth + deltaX;
   }
 
   if (pos.includes('n')) {
-    newHeight = dragState.startHeight - deltaY;
+    newHeight = startHeight - deltaY;
     newTop = dragState.startTop + deltaY;
   } else if (pos.includes('s')) {
-    newHeight = dragState.startHeight + deltaY;
+    newHeight = startHeight + deltaY;
   }
 
   // Minimum size
@@ -425,17 +489,21 @@ function handleResizeInner(e) {
 
   if (newWidth < minWidth) {
     if (pos.includes('w')) {
-      newLeft = dragState.startLeft + dragState.startWidth - minWidth;
+      newLeft = dragState.startLeft + startWidth - minWidth;
     }
     newWidth = minWidth;
   }
 
   if (newHeight < minHeight) {
     if (pos.includes('n')) {
-      newTop = dragState.startTop + dragState.startHeight - minHeight;
+      newTop = dragState.startTop + startHeight - minHeight;
     }
     newHeight = minHeight;
   }
+
+  // Convert outer dimensions to world space
+  const worldOuterWidth = dragState.outerWidth / transform.scale;
+  const worldOuterHeight = dragState.outerHeight / transform.scale;
 
   // Constrain to outer bounds with padding (account for outer border)
   if (newLeft < PADDING) {
@@ -447,11 +515,11 @@ function handleResizeInner(e) {
     newTop = PADDING;
   }
   // Available space = outerWidth - 2*OUTER_BORDER
-  if (newLeft + newWidth > dragState.outerWidth - 2 * OUTER_BORDER - PADDING) {
-    newWidth = dragState.outerWidth - 2 * OUTER_BORDER - PADDING - newLeft;
+  if (newLeft + newWidth > worldOuterWidth - 2 * OUTER_BORDER - PADDING) {
+    newWidth = worldOuterWidth - 2 * OUTER_BORDER - PADDING - newLeft;
   }
-  if (newTop + newHeight > dragState.outerHeight - 2 * OUTER_BORDER - PADDING) {
-    newHeight = dragState.outerHeight - 2 * OUTER_BORDER - PADDING - newTop;
+  if (newTop + newHeight > worldOuterHeight - 2 * OUTER_BORDER - PADDING) {
+    newHeight = worldOuterHeight - 2 * OUTER_BORDER - PADDING - newTop;
   }
 
   // Apply - round everything to pixels
@@ -492,6 +560,7 @@ function generateSpritesheet() {
     const outerRect = widget.outer.getBoundingClientRect();
     const innerRect = widget.inner.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
+    const transform = pannerZoomer.getTransform();
 
     // Account for container's border
     const containerStyle = window.getComputedStyle(container);
@@ -500,12 +569,16 @@ function generateSpritesheet() {
     const containerLeft = containerRect.left + containerBorderLeft;
     const containerTop = containerRect.top + containerBorderTop;
 
+    // Convert screen coordinates to world coordinates (container pixels)
+    const worldOuterTopLeft = pannerZoomer.toWorld(outerRect.left, outerRect.top);
+    const worldContainerTopLeft = pannerZoomer.toWorld(containerLeft, containerTop);
+
     // Get positions in pixels - add OUTER_BORDER to skip the widget border itself
-    const left = Math.round(outerRect.left - containerLeft + OUTER_BORDER);
-    const top = Math.round(outerRect.top - containerTop + OUTER_BORDER);
-    // Subtract borders from dimensions to get content area only
-    const width = Math.round(outerRect.width - 2 * OUTER_BORDER);
-    const height = Math.round(outerRect.height - 2 * OUTER_BORDER);
+    const left = Math.round(worldOuterTopLeft.wx - worldContainerTopLeft.wx + OUTER_BORDER);
+    const top = Math.round(worldOuterTopLeft.wy - worldContainerTopLeft.wy + OUTER_BORDER);
+    // Convert dimensions to world space and subtract borders to get content area only
+    const width = Math.round(outerRect.width / transform.scale - 2 * OUTER_BORDER);
+    const height = Math.round(outerRect.height / transform.scale - 2 * OUTER_BORDER);
 
     // Extract image data
     tempCanvas.width = width;
@@ -518,9 +591,9 @@ function generateSpritesheet() {
     // inner.style.left = content position - INNER_BORDER, so add it back
     const innerLeft = parseFloat(widget.inner.style.left) + INNER_BORDER;
     const innerTop = parseFloat(widget.inner.style.top) + INNER_BORDER;
-    // getBoundingClientRect includes borders, so subtract them for content size
-    const innerWidth = widget.inner.getBoundingClientRect().width - 2 * INNER_BORDER;
-    const innerHeight = widget.inner.getBoundingClientRect().height - 2 * INNER_BORDER;
+    // Convert dimensions to world space and subtract borders for content size
+    const innerWidth = Math.round(innerRect.width / transform.scale - 2 * INNER_BORDER);
+    const innerHeight = Math.round(innerRect.height / transform.scale - 2 * INNER_BORDER);
 
     // The extraction excluded outer borders, so:
     // - topSlice = where inner content starts in the extracted image
@@ -766,18 +839,23 @@ function saveWidgets() {
       const outerRect = widget.outer.getBoundingClientRect();
       const innerRect = widget.inner.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
+      const transform = pannerZoomer.getTransform();
+
+      // Convert screen coordinates to world coordinates
+      const worldOuterTopLeft = pannerZoomer.toWorld(outerRect.left, outerRect.top);
+      const worldContainerTopLeft = pannerZoomer.toWorld(containerRect.left, containerRect.top);
 
       // Get outer position relative to container content area
-      const outerLeft = Math.round(outerRect.left - containerRect.left - 2 + OUTER_BORDER); // -2 for container border
-      const outerTop = Math.round(outerRect.top - containerRect.top - 2 + OUTER_BORDER);
-      const outerWidth = Math.round(outerRect.width - 2 * OUTER_BORDER);
-      const outerHeight = Math.round(outerRect.height - 2 * OUTER_BORDER);
+      const outerLeft = Math.round(worldOuterTopLeft.wx - worldContainerTopLeft.wx - 2 + OUTER_BORDER); // -2 for container border
+      const outerTop = Math.round(worldOuterTopLeft.wy - worldContainerTopLeft.wy - 2 + OUTER_BORDER);
+      const outerWidth = Math.round(outerRect.width / transform.scale - 2 * OUTER_BORDER);
+      const outerHeight = Math.round(outerRect.height / transform.scale - 2 * OUTER_BORDER);
 
       // Get inner position and size (content area)
       const innerLeft = parseFloat(widget.inner.style.left) + INNER_BORDER;
       const innerTop = parseFloat(widget.inner.style.top) + INNER_BORDER;
-      const innerWidth = Math.round(innerRect.width - 2 * INNER_BORDER);
-      const innerHeight = Math.round(innerRect.height - 2 * INNER_BORDER);
+      const innerWidth = Math.round(innerRect.width / transform.scale - 2 * INNER_BORDER);
+      const innerHeight = Math.round(innerRect.height / transform.scale - 2 * INNER_BORDER);
 
       return {
         id: index + 1,
