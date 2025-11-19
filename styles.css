@@ -1,0 +1,170 @@
+  * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      user-select: none;
+      background: #f5f5f5;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .controls {
+      margin: 15px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button:active {
+      transform: translateY(1px);
+    }
+
+    #container {
+      position: relative;
+      display: inline-block;
+      border: 2px solid #333;
+      background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+      user-select: none;
+      line-height: 0;
+    }
+
+    #main-image {
+      display: block;
+      pointer-events: none;
+      image-rendering: optimizeSpeed !important;
+      image-rendering: -moz-crisp-edges !important;
+      image-rendering: -webkit-optimize-contrast !important;
+      image-rendering: pixelated !important;
+    }
+
+    .widget {
+      position: absolute;
+      border: 1px solid #c00;
+      background: rgba(255,0,0,.15);
+      cursor: move;
+    }
+
+    .widget.dragging {
+      opacity: 0.6;
+      cursor: grabbing;
+    }
+
+    .widget.selected {
+      border-color: #f0f;
+      box-shadow: 0 0 0 2px #f0f;
+    }
+
+    .inner {
+      position: absolute;
+      border: 1px solid #00c;
+      background: rgba(0,0,255,.15);
+      cursor: move;
+      pointer-events: auto;
+    }
+
+    .inner.dragging {
+      opacity: 0.6;
+      cursor: grabbing;
+    }
+
+    .resize-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border: 1px solid;
+      z-index: 10;
+      pointer-events: auto;
+    }
+
+    .widget > .resize-handle {
+      border-color: #c00;
+      background: #fcc;
+    }
+
+    .inner > .resize-handle {
+      border-color: #00c;
+      background: #ccf;
+    }
+
+    .resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+    .resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+    .resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+    .resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+    .resize-handle.n { top: -5px; left: 50%; margin-left: -5px; cursor: n-resize; }
+    .resize-handle.s { bottom: -5px; left: 50%; margin-left: -5px; cursor: s-resize; }
+    .resize-handle.w { top: 50%; margin-top: -5px; left: -5px; cursor: w-resize; }
+    .resize-handle.e { top: 50%; margin-top: -5px; right: -5px; cursor: e-resize; }
+
+    .widget-label {
+      position: absolute;
+      top: -25px;
+      left: 0;
+      background: #c00;
+      color: white;
+      padding: 2px 8px;
+      font-size: 11px;
+      border-radius: 3px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 12px;
+      margin: 15px 0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    #spritesheet-container {
+      margin-top: 20px;
+      border: 2px solid #333;
+      background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+      display: inline-block;
+      padding: 10px;
+    }
+
+    #spritesheet {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      max-width: 100%;
+    }
+
+    #output {
+      margin-top: 15px;
+      white-space: pre-wrap;
+      background: #fafafa;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
