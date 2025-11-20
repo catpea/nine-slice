@@ -1,6 +1,6 @@
 {
   "name": "panner-zoomer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A lightweight, high-performance panner zoomer container built as a native web component. Zero dependencies, works everywhere, and fundamental to modern web applications.",
   "type": "module",
   "main": "panner-zoomer.js",
