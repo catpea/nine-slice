@@ -168,3 +168,55 @@
       max-height: 400px;
       overflow-y: auto;
     }
+
+    .preview-container {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+      padding: 10px;
+      background: #fafafa;
+      border-radius: 4px;
+      min-height: 100px;
+    }
+
+    .widget-preview {
+      resize: both;
+      overflow: auto;
+      box-sizing: border-box;
+      min-width: 120px;
+      min-height: 120px;
+      width: 200px;
+      height: 200px;
+      padding: 15px;
+      background: #f0f0f0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #333;
+      position: relative;
+    }
+
+    .widget-preview::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 16px;
+      height: 16px;
+      background: linear-gradient(135deg, transparent 0%, transparent 40%, #999 40%, #999 60%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .preview-label {
+      position: absolute;
+      top: -12px;
+      left: 8px;
+      background: #007bff;
+      color: white;
+      padding: 2px 8px;
+      font-size: 11px;
+      border-radius: 3px;
+      font-weight: bold;
+      z-index: 1;
+    }

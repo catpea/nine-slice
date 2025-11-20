@@ -17,6 +17,7 @@ const saveShellBtn = document.getElementById('save-shell');
 const saveJsonBtn = document.getElementById('save-json');
 const copyBtn = document.getElementById('copy-css');
 const output = document.getElementById('output');
+const previewContainer = document.getElementById('preview-container');
 const spritesheetCanvas = document.getElementById('spritesheet');
 const spritesheetCtx = spritesheetCanvas.getContext('2d', { willReadFrequently: true });
 
@@ -705,10 +706,70 @@ function generateSpritesheet() {
 
   output.textContent = css;
 
+  // Create widget previews
+  createWidgetPreviews(extractedData);
+
   // Restore resize handles visibility
   allHandles.forEach((handle) => (handle.style.visibility = 'visible'));
 
   console.log('Spritesheet generated successfully!');
+}
+
+// -----------------------------------------------------------------
+// Create widget previews with resizable borders
+// -----------------------------------------------------------------
+function createWidgetPreviews(extractedData) {
+  // Clear existing previews
+  previewContainer.innerHTML = '';
+
+  // Create temporary canvas for generating individual widget images
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+
+  // Disable image smoothing for pixel-perfect rendering
+  tempCtx.imageSmoothingEnabled = false;
+  tempCtx.webkitImageSmoothingEnabled = false;
+  tempCtx.mozImageSmoothingEnabled = false;
+  tempCtx.msImageSmoothingEnabled = false;
+
+  extractedData.forEach((data, index) => {
+    const widgetNum = index + 1;
+
+    // Create canvas for this widget
+    tempCanvas.width = data.width;
+    tempCanvas.height = data.height;
+    tempCtx.putImageData(data.imageData, 0, 0);
+
+    // Convert to data URL
+    const imageDataUrl = tempCanvas.toDataURL('image/png');
+
+    // Create preview element
+    const preview = document.createElement('div');
+    preview.className = `ui-widget-${widgetNum} widget-preview`;
+
+    // Apply border-image styles
+    preview.style.borderWidth = `${data.slices.top}px ${data.slices.right}px ${data.slices.bottom}px ${data.slices.left}px`;
+    preview.style.borderStyle = 'solid';
+    preview.style.borderColor = 'transparent';
+    preview.style.borderImageSource = `url('${imageDataUrl}')`;
+    preview.style.borderImageSlice = `${data.slices.top} ${data.slices.right} ${data.slices.bottom} ${data.slices.left}`;
+    preview.style.borderImageRepeat = 'round';
+
+    // Add label
+    const label = document.createElement('div');
+    label.className = 'preview-label';
+    label.textContent = `Widget ${widgetNum}`;
+    preview.appendChild(label);
+
+    // Add sample content
+    const content = document.createElement('div');
+    content.textContent = `Resize me! Drag the bottom-right corner to test the 9-slice scaling.`;
+    preview.appendChild(content);
+
+    previewContainer.appendChild(preview);
+
+    console.log(`Created preview for Widget ${widgetNum}`);
+  });
 }
 
 // -----------------------------------------------------------------
